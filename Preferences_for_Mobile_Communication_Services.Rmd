@@ -1,0 +1,198 @@
+---
+title: 'Predictive Analytics homework - Conjoint Analysis (Preferences for Mobile Communication Services)'
+author: "Godfred Somua-Gyimah"
+date: "January 10, 2017"
+output: 
+  pdf_document: 
+    toc: yes
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+**Note**: In order to run this demo, the following R packages must be installed in your R environment:
+
+- ggplot2: visualization
+- conjoint: marketing conjoint analysis
+
+&nbsp;
+&nbsp;
+
+\newpage
+
+# 1. Read in Dataset
+```{r}
+# Clean the environment
+rm(list = ls())
+# Read data file
+df <- read.csv("mobile_services_ranking.csv")
+
+```
+
+# 2. Understand Data
+
+```{r}
+# Show head
+head(df)
+
+```
+```{r}
+# Show the structure of the data frame
+str(df)
+
+```
+
+```{r}
+# Show summary statistics
+summary(df)
+
+```
+
+# 3. Exploratory Data Analysis
+
+We can draw a couple of plots to explore the data.
+
+First, load ggplot2 package.
+
+```{r}
+# Load ggplot2 package for plotting
+library(ggplot2)
+```
+
+```{r}
+# Draw box plot of ranking by brand 
+ggplot(df,aes(x=brand, y=ranking, fill=brand)) +
+  geom_boxplot()
+```
+
+```{r}
+# Draw box plot of ranking by startup cost 
+ggplot(df,aes(x=startup, y=ranking, fill=startup)) +
+  geom_boxplot()
+```
+
+```{r}
+# Draw box plot of ranking by monthly cost 
+ggplot(df,aes(x=monthly, y=ranking, fill=monthly)) +
+  geom_boxplot()
+```
+
+From the above box plot, we can see it clearly that ranking is higher with lower monthly cost.
+
+# 4. Regression Analysis of the Main Effect Model
+```{r}
+# Fit linear regression model using main effects only (no interaction terms)
+fit <- lm(ranking ~.,data= df)
+
+print(summary(fit))
+
+```
+
+```{r}
+# Show coefficient rounding to the nearest hundredth
+formatC(fit$coefficients[-1], format = 'f', digits = 2)
+```
+
+
+# 5. Traditional Conjoint Analysis
+
+```{r}
+# Load the conjoint package
+library(conjoint)
+
+```
+
+## 5.1. Prepare Data
+
+```{r}
+# Create levels
+level = c(levels(df$brand),
+          levels(df$startup),
+          levels(df$monthly),
+          levels(df$service),
+          levels(df$retail),
+          levels(df$apple),
+          levels(df$samsung),
+          levels(df$google))
+
+# Remove double quote in the levels
+level <- gsub('"','',level)
+
+level
+```
+
+```{r}
+# Create profiles
+profiles <- df[1:8]
+
+profiles
+  
+```
+
+```{r}
+# Create ratings of respondent
+ratings = df[9]
+
+head(ratings)
+```
+
+## 5.2. Calculate Attribute Importance
+
+```{r}
+# Calculate the importance of each attribute
+im = caImportance(y=ratings, x=profiles)
+names(im) = names(profiles)
+im
+```
+
+```{r, fig.width= 8}
+barplot(sort(im, decreasing = TRUE),col=1:length(im), main = "Attribute Importance")
+```
+
+
+## 5.3. Calculate Part Worths
+
+```{r}
+pw <- caUtilities(y=ratings, x=profiles, z=level)
+```
+
+
+```{r}
+names(pw) = c('intercept',level)
+
+# Show part worths rounding to the nearest hundredth
+formatC(pw[-1], format = 'f', digits = 2)  # Do not show intercept
+```
+
+
+```{r}
+# Show coefficient rounding to the nearest hundredth
+formatC(fit$coefficients[-1], format = 'f', digits = 2)
+```
+
+Compare the above part worths and OLS coefficients, can you find out their relationship?
+
+```{r, fig.width=10, fig.height=14}
+#  Create a vector that assigns the same color value to levels under a same attribute
+cols = c(1,1,1,1,2,2,2,2,3,3,3,3,4,4,5,5,6,6,7,7,8,8)
+
+# Draw barplot of part worths  
+bp <- barplot(pw[-1],las = 1, horiz = TRUE, xlim = c(-6, 7),axisnames = FALSE,
+        col = cols, main = "Part Worths (Utilities)")
+
+text(x= 5.8, y= bp, cex = 0.9,
+     labels= paste(level,
+                   "(",
+                   formatC(pw[-1], format = 'f', digits = 2),
+                   ')'))
+# Add legend
+legend(-6, 26,names(profiles), pch =0, cex = 1.5, fill = 1:8)
+
+```
+
+
+
+
